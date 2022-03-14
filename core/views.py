@@ -22,7 +22,7 @@ class TestListView(ListAPIView):
 
 class TestDetailView(RetrieveModelMixin, CreateModelMixin, GenericAPIView):
     """Отображает детализированно тест и обрабатывает прохождение теста пользователем"""
-    queryset = Test.objects.filter(is_deleted=False)
+    queryset = Test.objects.filter(is_deleted=False).prefetch_related('questions__answers')
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request, *args, **kwargs):
@@ -56,7 +56,7 @@ class PassedTestListView(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return self.request.user.testpassing_set.all()
+        return self.request.user.testpassing_set.select_related('test')
 
 
 class PassedTestDetailView(RetrieveAPIView):
@@ -66,4 +66,11 @@ class PassedTestDetailView(RetrieveAPIView):
 
     def get_object(self):
         test_pk = self.kwargs['pk']
-        return get_object_or_404(TestPassing, user=self.request.user, test_id=test_pk)
+        queryset = TestPassing.objects.filter(user=self.request.user, test_id=test_pk).select_related(
+            'test',
+        ).prefetch_related(
+            'question_answers',
+            'question_answers__question',
+            'question_answers__user_answer',
+        )
+        return get_object_or_404(queryset)
