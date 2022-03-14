@@ -37,9 +37,10 @@ class Answer(models.Model):
 
 class TestPassing(models.Model):
     """Модель прохождения теста пользователем"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='passed_tests')
-    test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='passed_by_users')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    test = models.ForeignKey(Test, on_delete=models.CASCADE)
     passing_date = models.DateField('passing date', auto_now_add=True)
+    correct_answers = models.PositiveIntegerField('correct answers')
 
     def __str__(self):
         return f'Test "{self.test.name}" passed by "{self.user.username}"'
@@ -48,9 +49,9 @@ class TestPassing(models.Model):
 class QuestionAnswer(models.Model):
     """Модель ответа на вопрос пользователем"""
     test_passing = models.ForeignKey(TestPassing, on_delete=models.CASCADE, related_name='question_answers')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='answered_questions')
-    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='answered_by_users')
-    user_answer = models.BigIntegerField('user answer id')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    user_answer = models.ForeignKey(Answer, on_delete=models.CASCADE)
 
     def __str__(self):
         return f'User "{self.user.username}" answered the question "{self.question.text[:30]}...": {self.user_answer}'

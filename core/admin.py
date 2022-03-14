@@ -1,7 +1,7 @@
 from django.contrib import admin
 from nested_admin.nested import NestedModelAdmin, NestedTabularInline
 
-from core.models import Test, Question, Answer
+from core.models import Test, Question, Answer, TestPassing, QuestionAnswer
 
 
 class AnswerInline(NestedTabularInline):
@@ -25,3 +25,12 @@ class TestAdmin(NestedModelAdmin):
 
 
 admin.site.register(Test, TestAdmin)
+
+class TestPassingAdmin(admin.ModelAdmin):
+    pass
+
+class QuestionAnswerAdmin(admin.ModelAdmin):
+    pass
+
+admin.site.register(TestPassing, TestPassingAdmin)
+admin.site.register(QuestionAnswer, QuestionAnswerAdmin)

@@ -48,21 +48,28 @@ class AnswerSerializer(serializers.ModelSerializer):
 
 
 class QuestionSerializer(serializers.ModelSerializer):
-    """Сериализатор для отображения вопроса из теста"""
-    answers = AnswerSerializer(many=True)
-
+    """Сериализатор для отображения вопроса"""
     class Meta:
         model = Question
         fields = (
             'id',
             'text',
+        )
+
+
+class QuestionDetailSerializer(QuestionSerializer):
+    """Сериализатор для детального отображения вопроса с вариантами ответов"""
+    answers = AnswerSerializer(many=True)
+
+    class Meta(QuestionSerializer.Meta):
+        fields = QuestionSerializer.Meta.fields + (
             'answers',
         )
 
 
 class TestDetailSerializer(TestSerializer):
-    """Сериализатор для детального отображения теста"""
-    questions = QuestionSerializer(many=True)
+    """Сериализатор для детального отображения теста с вопросами и ответами"""
+    questions = QuestionDetailSerializer(many=True)
 
     class Meta(TestSerializer.Meta):
         fields = TestSerializer.Meta.fields + ('questions',)
@@ -90,10 +97,52 @@ class TestPassingSerializer(serializers.Serializer):
             QuestionAnswer(
                 test_passing=test_passing_object,
                 user=validated_data['user'],
-                question=aq['question'],
-                user_answer=aq['user_answer']
-            ) for aq in question_answers
+                question=qa['question'],
+                user_answer=qa['user_answer']
+            ) for qa in question_answers
         ]
         QuestionAnswer.objects.bulk_create(objs)
 
         return test_passing_object
+
+
+class PassedTestSerializer(serializers.ModelSerializer):
+    """Сериализатор для отображения пройденных тестов"""
+    test = TestSerializer()
+
+    class Meta(TestSerializer.Meta):
+        model = TestPassing
+        fields = (
+            'passing_date',
+            'correct_answers',
+            'test',
+        )
+
+
+class QuestionAnswerDetailSerializer(QuestionAnswerSerializer):
+    """Сериализатор для отображения ответов пользователя с пометкой правильный/неправильный"""
+    question = QuestionSerializer()
+    is_correct = serializers.SerializerMethodField()
+    text = serializers.SerializerMethodField()
+
+    class Meta(QuestionAnswerSerializer.Meta):
+        fields = QuestionAnswerSerializer.Meta.fields + (
+            'text',
+            'is_correct',
+        )
+
+    def get_text(self, obj):
+        return obj.user_answer.text
+
+    def get_is_correct(self, obj):
+        return obj.user_answer == obj.question.answers.filter(is_correct=True).get()
+
+
+class PassedTestDetailSerializer(PassedTestSerializer):
+    """Сериализатор для отображения пройденного теста с пометками правильных ответов"""
+    question_answers = QuestionAnswerDetailSerializer(many=True)
+
+    class Meta(PassedTestSerializer.Meta):
+        fields = PassedTestSerializer.Meta.fields + (
+            'question_answers',
+        )

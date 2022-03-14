@@ -1,10 +1,11 @@
 from rest_framework import status
-from rest_framework.generics import CreateAPIView, ListAPIView, GenericAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, GenericAPIView, RetrieveAPIView, get_object_or_404
 from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.response import Response
 
-from core.serializers import CreateUserSerializer, TestSerializer, TestDetailSerializer, TestPassingSerializer
+from core.serializers import CreateUserSerializer, TestSerializer, TestDetailSerializer, TestPassingSerializer, \
+    PassedTestSerializer, PassedTestDetailSerializer
 from core.models import Test, TestPassing
 
 
@@ -39,6 +40,30 @@ class TestDetailView(RetrieveModelMixin, CreateModelMixin, GenericAPIView):
         return TestPassingSerializer
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user, test=self.get_object())
+        test = self.get_object()
+        user_answer_ids = [qa['user_answer'].id for qa in serializer.validated_data['question_answers']]
+
+        correct_answers = 0
+        for question in test.questions.prefetch_related('answers'):
+            correct_answers += question.answers.filter(is_correct=True, id__in=user_answer_ids).exists()
+
+        serializer.save(user=self.request.user, test=test, correct_answers=correct_answers)
 
 
+class PassedTestListView(ListAPIView):
+    """Отображает пройденные пользователем тесты"""
+    serializer_class = PassedTestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.testpassing_set.all()
+
+
+class PassedTestDetailView(RetrieveAPIView):
+    """Отображает пройденный тест с пометками правильный или нет ответ"""
+    serializer_class = PassedTestDetailSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        test_pk = self.kwargs['pk']
+        return get_object_or_404(TestPassing, user=self.request.user, test_id=test_pk)
